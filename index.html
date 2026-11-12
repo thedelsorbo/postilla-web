@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17564f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Postilla">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Postilla: leggi, annota e modifica i PDF nel browser, anche senza rete. I documenti restano sul dispositivo.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icona-192.png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:;">
+<title>Postilla</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="android.css">
+<link rel="stylesheet" href="web.css">
+<script src="web-version.js"></script>
+<script src="host-web.js"></script>
+<script src="node_modules/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="node_modules/@pdf-lib/fontkit/dist/fontkit.umd.min.js"></script>
+<script src="node_modules/node-forge/dist/forge.min.js"></script>
+<script src="node_modules/fflate/umd/index.js"></script>
+<script src="node_modules/mammoth/mammoth.browser.min.js"></script>
+</head>
+<body>
+<header id="tabbar"></header>
+<div id="toolbar" hidden></div>
+<main id="stage">
+  <section id="home"></section>
+  <div id="docs"></div>
+</main>
+<div id="floating"></div>
+<div id="toasts" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

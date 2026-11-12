@@ -1,0 +1,1 @@
+window.POSTILLA_VERSION = "0.9.4";

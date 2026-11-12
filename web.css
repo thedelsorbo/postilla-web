@@ -1,0 +1,32 @@
+/* Postilla nel browser: riquadro dei file salvati, archivio, e spazio per la «tacca» degli iPhone. */
+html.web body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+html.ios body { -webkit-text-size-adjust: 100%; }
+html.ios input, html.ios select, html.ios textarea { font-size: max(16px, 1em); } /* sotto 16 px Safari ingrandisce la pagina */
+
+#web-tray { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 900;
+  width: min(560px, calc(100vw - 24px)); background: var(--panel, #fff); color: inherit; border-radius: 14px; box-shadow: 0 8px 30px #0005;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+#web-tray p { margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
+#web-tray .web-tray-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#web-tray button { min-height: 44px; padding: 0 14px; font-size: 15px; }
+#web-tray .web-close { margin-left: auto; min-width: 44px; padding: 0; }
+
+.web-archive-back { position: fixed; inset: 0; z-index: 950; background: #22302f99; display: grid; place-items: center; padding: 12px; }
+.web-archive { background: var(--panel, #fff); border-radius: 14px; width: min(640px, 100%); max-height: calc(100dvh - 24px); display: flex; flex-direction: column;
+  padding: 18px 18px 14px; box-shadow: 0 10px 40px #0006; }
+.web-archive h2 { margin: 0 0 8px; color: var(--accent); font-size: 20px; }
+.web-archive-note { margin: 0 0 6px; line-height: 1.45; }
+.web-archive-space { margin: 0 0 8px; opacity: .75; font-size: 13px; }
+.web-archive-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; border-top: 1px solid var(--line, #ddd); }
+.web-archive-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 2px; border-bottom: 1px solid var(--line, #ddd); align-items: center; }
+.web-archive-list .wa-name { font-weight: 600; overflow-wrap: anywhere; }
+.web-archive-list .wa-info { grid-column: 1; font-size: 13px; opacity: .7; }
+.web-archive-list .wa-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.web-archive-list button { min-height: 40px; }
+.web-archive-list .web-archive-empty { display: block; opacity: .7; padding: 16px 2px; }
+.web-archive-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.web-archive-actions button { min-height: 44px; min-width: 110px; }
+@media print { #web-tray, .web-archive-back { display: none !important; } }
+/* Nel browser non ci sono i pulsanti della finestra di Windows a destra della barra. */
+html.web #tabbar { padding-right: 4px; -webkit-app-region: none; }
+html.web #tabbar button, html.web .tab { -webkit-app-region: none; }
