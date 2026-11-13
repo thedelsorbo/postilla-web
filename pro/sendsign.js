@@ -3,7 +3,7 @@
 // il testo del messaggio e apre «Condividi» (posta, WhatsApp…): l'invio lo fa sempre l'utente.
 // Chi riceve firma nel campo con il proprio certificato (Acrobat Reader, Postilla o altro programma di firma);
 // quando il PDF torna, «Verifica le firme digitali» dice chi ha firmato e se il documento è integro.
-import { h, modal, toast, ask } from '../core.js';
+import { h, modal, toast, ask, clipWrite } from '../core.js';
 import { emptySigFields } from './signature.js';
 
 export async function sendForSignature(app, view) {
@@ -32,7 +32,7 @@ export async function sendForSignature(app, view) {
       h('label', {}, 'Testo del messaggio (puoi cambiarlo)', ta),
       h('p', { class: 'hint' }, 'Postilla non invia nulla da sola: copia il testo, poi con «Condividi il PDF» scegli posta o WhatsApp e invii tu. Quando il documento torna firmato, aprilo e usa Documento → «Verifica le firme digitali».'),
       h('div', { class: 'modal-actions' },
-        h('button', { class: 'sendsign-copy', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); toast('Testo copiato: incollalo nel messaggio.'); } catch { toast('Non riesco a copiare il testo.', 'error'); } } }, 'Copia il testo'),
+        h('button', { class: 'sendsign-copy', onclick: async () => { if (await clipWrite(ta.value)) toast('Testo copiato: incollalo nel messaggio.'); else toast('Non riesco a copiare il testo.', 'error'); } }, 'Copia il testo'),
         h('button', { onclick: () => done(false) }, 'Chiudi'),
         h('button', { class: 'primary sendsign-share', onclick: async () => { done(true); const { shareDoc } = await import('../share.js'); shareDoc(app, view); } }, 'Condividi il PDF…')));
   });
