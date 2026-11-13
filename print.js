@@ -39,7 +39,7 @@ export function pageCss(mm) {
 }`;
 }
 
-function ask(view, margin = 8) {
+function ask(view, margin = 8, homeOk = false) {
   const total = view.pages.length;
   return modal((box, done) => {
     const radio = (v, label, checked) => { const r = h('input', { type: 'radio', name: 'pr', value: v }); r.checked = !!checked; return h('label', { class: 'check' }, r, ` ${label}`); };
@@ -50,12 +50,12 @@ function ask(view, margin = 8) {
     const quality = h('select', { class: 'print-quality', 'aria-label': 'Qualità' }, h('option', { value: '150' }, 'Normale (150 dpi)'), h('option', { value: '300' }, 'Alta (300 dpi, più lenta)'));
     const margins = h('select', { class: 'print-margins', 'aria-label': 'Margini del foglio' }, ...MARGINS.map((m) => h('option', { value: String(m.mm) }, m.label)));
     margins.value = String(MARGINS.some((m) => m.mm === +margin) ? +margin : 8);
-    const go = () => {
+    const go = (home = false) => {
       const kind = box.querySelector('input[name=pr]:checked').value;
       let pages = kind === 'all' ? [...Array(total).keys()] : kind === 'current' ? [view.current] : parseRange(range.value, total);
       if (!pages) { toast(`Intervallo non valido: usa numeri da 1 a ${total}, per esempio 1-3, 5.`, 'warn'); return; }
       if (pages.length > 300) pages = pages.slice(0, 300);
-      done({ pages, annots: ann.checked, dpi: +quality.value, margin: +margins.value });
+      done({ pages, annots: ann.checked, dpi: +quality.value, margin: +margins.value, home: home === true });
     };
     box.classList.add('print-dialog');
     box.append(h('h2', {}, 'Stampa'),
@@ -65,15 +65,47 @@ function ask(view, margin = 8) {
       h('label', {}, 'Margini', margins),
       h('p', { class: 'hint' }, 'Foglio A4. La pagina viene adattata per stare tutta dentro i margini, così la stampante non la taglia. Nella finestra di stampa lascia «Margini: predefiniti» e «Scala: predefinita».'),
       ...(total > 300 ? [h('p', { class: 'hint' }, 'Si stampano al massimo 300 pagine per volta.')] : []),
-      h('div', { class: 'modal-actions' }, h('button', { onclick: () => done(null) }, 'Annulla'), h('button', { class: 'primary', onclick: go }, 'Stampa…')));
+      ...(homeOk ? [h('p', { class: 'hint' }, '«Stampanti di casa» passa il PDF all\'app Stampanti: lì scegli la stampante di casa, fronte/retro, più pagine per foglio, copie e colore.')] : []),
+      h('div', { class: 'modal-actions' }, h('button', { onclick: () => done(null) }, 'Annulla'),
+        ...(homeOk ? [h('button', { class: 'home-print', title: 'Apri il PDF nell\'app Stampanti di casa (anche da fuori casa, con la VPN)', onclick: () => go(true) }, 'Stampanti di casa…')] : []),
+        h('button', { class: 'primary', onclick: () => go() }, 'Stampa…')));
   });
+}
+
+// 0.9.5: «Stampanti di casa». Il PDF (con le annotazioni fissate, se richiesto, e solo le pagine scelte) passa
+// all'app Stampanti (Windows o Android), che ha tutte le opzioni delle stampanti di casa. Il file originale non cambia.
+async function homePrint(view, opts) {
+  const status = h('div', { class: 'toast print-progress' }, 'Preparo il PDF per «Stampanti di casa»…');
+  document.getElementById('toasts').append(status);
+  try {
+    let bytes = opts.annots ? await buildPdf(view, { flatten: true }) : await view.ensureBytes();
+    if (opts.pages.length < view.pages.length) {
+      const { PDFDocument } = window.PDFLib;
+      const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const out = await PDFDocument.create();
+      (await out.copyPages(src, opts.pages)).forEach((pg) => out.addPage(pg));
+      bytes = await out.save();
+    }
+    const ok = await host.homePrint(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), view.tab.name);
+    status.remove();
+    if (!ok) { toast('Non riesco ad aprire l\'app «Stampanti di casa».', 'error'); return null; }
+    toast('PDF passato a «Stampanti di casa»: scegli lì la stampante e le opzioni.');
+    return { pages: opts.pages.length, home: true };
+  } catch (e) {
+    status.remove();
+    console.error(e);
+    toast(`Non riesco a preparare il PDF per «Stampanti di casa»: ${e.message || e}`, 'error');
+    return null;
+  }
 }
 
 export async function printDoc(app, view, preset = null) {
   if (!view) return null;
   await view.ready;
-  const opts = preset || await ask(view, app?.prefs?.printMargin ?? 8);
+  const homeOk = !preset && !!(await Promise.resolve(host.homePrintAvailable?.()).catch(() => false));
+  const opts = preset || await ask(view, app?.prefs?.printMargin ?? 8, homeOk);
   if (!opts) return null;
+  if (opts.home) return homePrint(view, opts);
   const margin = opts.margin ?? app?.prefs?.printMargin ?? 8;
   if (app?.prefs && !preset && app.prefs.printMargin !== margin) { app.prefs.printMargin = margin; app.savePrefs?.(); }
   document.getElementById('print-root')?.remove();

@@ -1,7 +1,6 @@
 // Strumenti di annotazione: cosa succede quando penna, mouse o dito toccano la pagina.
-import { h, icon, uid, toast } from './core.js';
-import { annSvg, bbox, dispRect, hits, labelWidth, quadDisp, toDisp, toUser, translated, wrapLines } from './annots.js';
-import { mergeQuads, nearestWord, pageText } from './text.js';
+import { h, icon, uid, toast, clipWrite, clipRead } from './core.js';
+import { annSvg, bbox, dispRect, hits, labelWidth, quadDisp, toDisp, toUser, translated, wrapLines } from './annots.js';import { mergeQuads, nearestWord, pageText } from './text.js';
 import { cachedLinkAt, followLink, linkAt } from './links.js';
 import { reEdit, startEdit } from './edits.js';
 import { FIELD_KINDS, fieldDialog, nextName } from './pro/formbuilder.js';
@@ -82,7 +81,14 @@ export class Tools {
     const extSvg = (a) => `<g class="an-ext" data-author="${String(a.ext).replace(/[&<>"]/g, '')}"><title>${String(a.ext).replace(/[&<>"]/g, '')}</title>${annSvg(a, p)}</g>`;
     p.hlSvg.innerHTML = ext.filter((a) => a.type === 'hl').map(extSvg).join('') + list.filter((a) => a.type === 'hl').map((a) => annSvg(a, p)).join('');
     p.svg.innerHTML = ext.filter((a) => a.type !== 'hl').map(extSvg).join('') + list.filter((a) => a.type !== 'hl').map((a) => annSvg(a, p)).join('');
+    // Il disegno è stato rifatto: l'etichetta selezionata o accesa resta visibile.
+    const sel = this.selected?.view === view && this.selected.id;
+    if (sel) p.svg.querySelector(`[data-id="${sel}"]`)?.classList.add('picked');
+    if (this.lit) { const el = p.svg.querySelector(`[data-id="${this.lit.id}"]`); if (el) { el.classList.add('lit'); this.lit.el = el; } }
   }
+
+  // Etichette nascoste: la gomma non le cancella per sbaglio (si tolgono con Seleziona → Elimina).
+  labelHidden(a) { return a.type === 'label' && !this.app.prefs.showLabels; }
 
   drawAll(view) {
     const set = new Set(view.annots.map((a) => a.page));
@@ -335,7 +341,7 @@ export class Tools {
 
   eraseAt(view, p, x, y) {
     const a = this.hit(view, p, x, y, 6);
-    if (!a) return;
+    if (!a || this.labelHidden(a)) return;
     this.act.removed.push(a);
     this.apply(view, { remove: [a] }, false);
   }
@@ -612,7 +618,7 @@ export class Tools {
       this.app.syncToolbar();
     };
     const bar = h('div', { class: 'an-ui minibar', style: `left:${(d[0] / act.p.w) * 100}%;top:${(d[1] / act.p.h) * 100}%` },
-      h('button', { html: `${icon('copy')} Copia`, onclick: () => { navigator.clipboard.writeText(text); toast('Testo copiato'); this.clearTextSel(); } }),
+      h('button', { html: `${icon('copy')} Copia`, onclick: async () => { const ok = await clipWrite(text); this.clipText = text; toast(ok ? 'Testo copiato' : 'Non riesco a usare gli appunti.', ok ? '' : 'error'); this.clearTextSel(); } }),
       h('button', { html: `${icon('mark')} Evidenzia`, onclick: make('hl') }),
       h('button', { html: `${icon('under')} Sottolinea`, onclick: make('ul') }),
       h('button', { html: `${icon('strike')} Barra`, onclick: make('so') }),
@@ -635,6 +641,7 @@ export class Tools {
   select(view, a) {
     this.deselect();
     this.selected = { view, id: a.id };
+    view.pages[a.page]?.svg?.querySelector(`[data-id="${a.id}"]`)?.classList.add('picked');
     this.frame(view, a);
     this.app.syncToolbar();
   }
@@ -650,6 +657,11 @@ export class Tools {
       this.selEl.textContent = '';
       const del = h('button', { title: 'Elimina', 'aria-label': 'Elimina', html: icon('trash'), onclick: () => this.deleteSelected() });
       const bar = h('div', { class: 'frame-bar' }, del);
+      if (a.type !== 'edit') {
+        bar.append(
+          h('button', { class: 'fb-copy', title: 'Copia (Ctrl + C)', 'aria-label': 'Copia', html: icon('copy'), onclick: () => this.copy() }),
+          h('button', { class: 'fb-dup', title: 'Duplica: copia e incolla subito', 'aria-label': 'Duplica', html: icon('duplicate'), onclick: async () => { if (await this.copy()) await this.paste(view); } }));
+      }
       if (a.type === 'edit') bar.append(h('button', { title: 'Modifica', 'aria-label': 'Modifica', html: icon('edit'), onclick: () => reEdit(this.app, view, this.current()) }));
       if (a.type === 'label') bar.append(h('button', { title: 'Modifica', 'aria-label': 'Modifica', html: icon('edit'), onclick: () => this.editLabel(view, this.current()) }));
       if (a.type === 'text' || a.type === 'note') bar.append(h('button', { title: 'Modifica', 'aria-label': 'Modifica', html: icon('edit'), onclick: () => (a.type === 'text' ? this.editText(view, p, this.current()) : this.editNote(view, this.current())) }));
@@ -667,8 +679,94 @@ export class Tools {
   }
 
   deselect() {
+    document.querySelectorAll('.an-layer .picked').forEach((el) => el.classList.remove('picked'));
     this.selEl?.remove();
     this.selected = null;
+  }
+
+  // --- Copia e incolla ---------------------------------------------------------
+  // Copia il testo selezionato del PDF oppure l'annotazione selezionata (etichetta, timbro, nota, firma, forma…).
+  async copy() {
+    if (this.textSel) {
+      const { text } = this.textSel;
+      await clipWrite(text);
+      this.clipText = text;
+      toast('Testo copiato');
+      return 'text';
+    }
+    const a = this.current();
+    if (!a) { toast('Seleziona prima un testo o un\'annotazione da copiare.'); return null; }
+    if (a.type === 'edit') { toast('Le modifiche al testo del PDF non si copiano: seleziona il testo e usa «Copia».'); return null; }
+    const p = this.selected.view.pages[a.page];
+    this.clip = { annot: JSON.parse(JSON.stringify(a)), w: p?.w, h: p?.h, n: 0, lastPage: a.page };
+    // Negli appunti di sistema va il testo dell'annotazione, se ne ha uno: si può incollare anche altrove.
+    const txt = a.text || a.label || '';
+    this.clipText = txt;
+    if (txt) await clipWrite(txt);
+    toast('Annotazione copiata: incollala con Ctrl + V o con «Incolla».');
+    return 'annot';
+  }
+
+  // Incolla l'annotazione copiata sulla pagina visibile (un poco spostata se è la stessa pagina),
+  // oppure, se negli appunti c'è un testo nuovo copiato altrove, una casella di testo con quel testo.
+  async paste(view) {
+    if (!view || !this.guardEdit(view)) return null;
+    let sys = null;
+    sys = await clipRead();
+    const i = Math.max(0, Math.min(view.pages.length - 1, view.current));
+    const p = view.pages[i];
+    if (!p) return null;
+    if (!p.vp) await view.getPage(i);
+    if (sys && sys.trim() && sys !== this.clipText) return this.pasteText(view, p, sys.trim());
+    if (!this.clip) {
+      if (sys && sys.trim()) return this.pasteText(view, p, sys.trim());
+      toast('Non c\'è niente da incollare: prima copia un\'annotazione o un testo.');
+      return null;
+    }
+    const c = this.clip;
+    const same = c.lastPage === i;
+    c.n = same ? c.n + 1 : 0;
+    c.lastPage = i;
+    const off = same ? 14 * c.n : 0;
+    let n = translated(c.annot, off, -off);
+    n.id = uid();
+    n.page = i;
+    if (n.type === 'field') { n.name = nextName(view, n.kind); delete n.value; }
+    // La copia deve restare dentro la pagina, anche se questa è più piccola di quella d'origine.
+    const b = bbox(n, p);
+    const dx = b[2] > p.w ? p.w - b[2] - 4 : b[0] < 0 ? -b[0] + 4 : 0;
+    const dy = b[3] > p.h ? p.h - b[3] - 4 : b[1] < 0 ? -b[1] + 4 : 0;
+    if (dx || dy) { const u0 = toUser(p, 0, 0); const u1 = toUser(p, dx, dy); n = { ...translated(n, u1[0] - u0[0], u1[1] - u0[1]), id: n.id, page: i }; }
+    this.commitEditor();
+    this.clearTextSel();
+    this.apply(view, { add: [n] });
+    this.select(view, n);
+    toast('Incollato');
+    return n;
+  }
+
+  // Dentro la casella di un'etichetta, nota o testo: Ctrl + C senza parole selezionate copia l'intera annotazione.
+  copyFromEditor(e, el) {
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'c' || el.selectionStart !== el.selectionEnd) return;
+    e.preventDefault();
+    this.commitEditor();
+    this.copy();
+  }
+
+  pasteText(view, p, text) {
+    const { prefs } = this.app;
+    const lines = text.split(/\r?\n/).slice(0, 40);
+    const fontSize = 12;
+    const w = Math.min(p.w - 40, Math.max(120, Math.max(...lines.map((l) => l.length)) * fontSize * 0.55 + 16));
+    const hg = Math.min(p.h - 40, lines.length * fontSize * 1.3 + 14);
+    const x = (p.w - w) / 2; const y = Math.max(20, p.h * 0.2);
+    const n = { id: uid(), type: 'text', page: p.i, color: prefs.color, fontSize, text: lines.join('\n'), a: toUser(p, x, y), b: toUser(p, x + w, y + hg) };
+    this.commitEditor();
+    this.clearTextSel();
+    this.apply(view, { add: [n] });
+    this.select(view, n);
+    toast('Testo incollato in una casella: con «Seleziona» la sposti o la modifichi.');
+    return n;
   }
 
   deleteSelected() {
@@ -758,7 +856,7 @@ export class Tools {
     const ta = h('textarea', { class: 'an-ui text-editor', 'aria-label': 'Testo della casella', style: `left:${(r[0] / p.w) * 100}%;top:${(r[1] / p.h) * 100}%;width:${((r[2] - r[0]) / p.w) * 100}%;height:${((r[3] - r[1]) / p.h) * 100}%;font-size:${a.fontSize * view.s}px;color:${a.color}` });
     ta.value = a.text;
     ta.addEventListener('pointerdown', (e) => e.stopPropagation());
-    ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.commitEditor(); });
+    ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.commitEditor(); else if (!isNew) this.copyFromEditor(e, ta); });
     p.el.append(ta);
     if (!isNew) { const g = p.svg?.querySelector(`[data-id="${a.id}"]`); if (g) g.style.visibility = 'hidden'; }
     this.editor = {
@@ -788,7 +886,7 @@ export class Tools {
     ta.value = a.text;
     const box = h('div', { class: 'an-ui note-pop', style: `left:${(x / p.w) * 100}%;top:calc(${(y / p.h) * 100}% + 26px)` }, ta);
     box.addEventListener('pointerdown', (e) => e.stopPropagation());
-    ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.commitEditor(); });
+    ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.commitEditor(); else if (!isNew) this.copyFromEditor(e, ta); });
     p.el.append(box);
     this.editor = {
       el: box,
@@ -810,13 +908,13 @@ export class Tools {
   editLabel(view, a, isNew = false) {
     this.commitEditor();
     const p = view.pages[a.page];
-    const HG = 22;
+    const HG = 18;
     const r = isNew ? [a.at[0] - 60, a.at[1] - HG / 2, a.at[0] + 60, a.at[1] + HG / 2] : dispRect(p, a);
-    const inp = h('input', { type: 'text', class: 'label-input', maxlength: '80', placeholder: 'Testo dell\'etichetta…', 'aria-label': 'Testo dell\'etichetta' });
+    const inp = h('input', { type: 'text', class: 'label-input', maxlength: '80', placeholder: 'Testo della nota invisibile…', 'aria-label': 'Testo della nota invisibile' });
     inp.value = a.text || '';
     const box = h('div', { class: 'an-ui note-pop label-pop', style: `left:${(r[0] / p.w) * 100}%;top:calc(${(r[3] / p.h) * 100}% + 6px)` }, inp);
     box.addEventListener('pointerdown', (e) => e.stopPropagation());
-    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); this.commitEditor(); } });
+    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); this.commitEditor(); } else if (!isNew) this.copyFromEditor(e, inp); });
     p.el.append(box);
     this.editor = {
       el: box,

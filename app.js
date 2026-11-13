@@ -562,6 +562,8 @@ class App {
     this.shapeBtn = iconBtn('rect', 'Forme', (e) => this.openShapes(e.currentTarget), { 'data-tool': 'shape' });
     this.stampBtn = iconBtn('stamp', 'Timbro', () => { this.tools.set('stamp'); this.openStampMenu(); }, { 'data-tool': 'stamp' });
     this.signBtn = iconBtn('sign', 'Firma visiva', () => { this.tools.set('sig'); this.openSignMenu(); }, { 'data-tool': 'sig' });
+    this.labelsBtn = iconBtn('eye', 'Mostra o nascondi le note invisibili', () => this.toggleLabels(), { 'data-role': 'show-labels' });
+    document.documentElement.classList.toggle('show-labels', !!this.prefs.showLabels);
     const sep = () => h('span', { class: 'sep' });
     bar.append(
       iconBtn('panel', 'Pannello laterale', () => { this.prefs.panel = !this.prefs.panel; this.savePrefs(); this.panel.show(this.prefs.panel); if (this.prefs.panel) this.panel.render(); }),
@@ -571,7 +573,7 @@ class App {
       tool('hand', 'hand', 'Sposta'), tool('select', 'select', 'Seleziona testo e annotazioni'),
       tool('hl', 'mark', 'Evidenzia'), tool('ul', 'under', 'Sottolinea'), tool('so', 'strike', 'Barra'),
       this.shapeBtn,
-      tool('text', 'text', 'Casella di testo'), tool('note', 'note', 'Nota'), tool('label', 'label', 'Etichetta: si accende quando la penna ci passa sopra'), this.stampBtn, this.signBtn,
+      tool('text', 'text', 'Casella di testo'), tool('note', 'note', 'Nota'), tool('label', 'label', 'Nota invisibile: compare quando la penna o il mouse ci passa sopra'), this.labelsBtn, this.stampBtn, this.signBtn,
       sep(), this.undoBtn, this.redoBtn,
       h('span', { class: 'spacer' }),
       iconBtn('zout', 'Riduci', () => this.zoomStep(1 / 1.25)), this.zoomLabel, iconBtn('zin', 'Ingrandisci', () => this.zoomStep(1.25)),
@@ -666,8 +668,21 @@ class App {
 
   zoomStep(k) { this.view?.animateScale(this.view.s * k, null); }
 
+  // Le etichette sono invisibili: questo tasto le mostra tutte (o le nasconde di nuovo).
+  toggleLabels(on = !this.prefs.showLabels) {
+    this.prefs.showLabels = !!on;
+    this.savePrefs();
+    document.documentElement.classList.toggle('show-labels', this.prefs.showLabels);
+    this.labelsBtn?.classList.toggle('on', this.prefs.showLabels);
+    const n = this.view ? this.view.annots.filter((a) => a.type === 'label').length : 0;
+    toast(this.prefs.showLabels
+      ? (n ? `Note invisibili mostrate (${n} in questo documento).` : 'In questo documento non ci sono note invisibili.')
+      : 'Note invisibili nascoste: compaiono quando la penna o il mouse ci passa sopra.');
+  }
+
   syncToolbar() {
     const { view } = this;
+    this.labelsBtn?.classList.toggle('on', !!this.prefs.showLabels);
     if (!view) return;
     const { tool } = this.tools;
     document.querySelectorAll('#toolbar [data-tool]').forEach((b) => {
@@ -879,6 +894,9 @@ class App {
           tab: () => { if (this.tabs.length) this.activate(this.tabs[(this.tabs.indexOf(this.active) + 1) % this.tabs.length]); },
         };
         if (!editing) { map.z = () => v && (e.shiftKey ? this.tools.redo(v) : this.tools.undo(v)); map.y = () => v && this.tools.redo(v); }
+        // Copia e incolla: solo se c'è qualcosa di Postilla da copiare; altrimenti resta il copia normale (pannelli, licenze…).
+        if (!editing && v && (this.tools.textSel || this.tools.selected) && !e.shiftKey) map.c = () => this.tools.copy();
+        if (!editing && v && !e.shiftKey && !document.querySelector('.modal')) map.v = () => this.tools.paste(v);
         if (map[k]) { e.preventDefault(); map[k](); }
         return;
       }

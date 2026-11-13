@@ -289,22 +289,19 @@ class Writer {
         break;
       }
       case 'label': {
-        // Pillola con fondo chiaro, bordo e testo del colore scelto (come a schermo).
+        // 0.9.5: foglietto bianco con bordo grigio chiaro e testo grigio scuro, senza icona (come a schermo).
         subtype = 'FreeText';
         const R = dispRect(p, a); const L = labelParts(R, a.text);
-        const font = await this.font(StandardFonts.HelveticaBold);
+        const font = await this.font(StandardFonts.Helvetica);
         const { hex } = this.str(font, a.text);
-        const light = [r, g, b].map((v) => f(1 - (1 - v) * 0.16)).join(' ');
-        const x0 = R[0] + 0.7; const x1 = R[2] - 0.7; const yb = Y(R[3]) + 0.7; const yt = Y(R[1]) - 0.7;
-        const rr = (yt - yb) / 2; const K = 0.5523 * rr; const ym = yb + rr;
-        const pill = `${f(x0 + rr)} ${f(yb)} m ${f(x1 - rr)} ${f(yb)} l ${f(x1 - rr + K)} ${f(yb)} ${f(x1)} ${f(ym - K)} ${f(x1)} ${f(ym)} c ${f(x1)} ${f(ym + K)} ${f(x1 - rr + K)} ${f(yt)} ${f(x1 - rr)} ${f(yt)} c ${f(x0 + rr)} ${f(yt)} l ${f(x0 + rr - K)} ${f(yt)} ${f(x0)} ${f(ym + K)} ${f(x0)} ${f(ym)} c ${f(x0)} ${f(ym - K)} ${f(x0 + rr - K)} ${f(yb)} ${f(x0 + rr)} ${f(yb)} c h`;
-        const [cx, cyD, cr] = L.dot; const cy = Y(cyD); const k = 0.5523 * cr;
-        const dot = `${f(cx + cr)} ${f(cy)} m ${f(cx + cr)} ${f(cy + k)} ${f(cx + k)} ${f(cy + cr)} ${f(cx)} ${f(cy + cr)} c ${f(cx - k)} ${f(cy + cr)} ${f(cx - cr)} ${f(cy + k)} ${f(cx - cr)} ${f(cy)} c ${f(cx - cr)} ${f(cy - k)} ${f(cx - k)} ${f(cy - cr)} ${f(cx)} ${f(cy - cr)} c ${f(cx + k)} ${f(cy - cr)} ${f(cx + cr)} ${f(cy - k)} ${f(cx + cr)} ${f(cy)} c h f`;
-        box = pad(...R, 1.5);
-        content = `${light} rg\n${stroke}1.4 w\n${pill} B\n${fill}${dot}\nBT\n/F0 ${f(L.fs)} Tf\n${f(L.tx)} ${f(Y(R[1] + L.hg / 2 + L.fs * 0.36))} Td\n${hex} Tj\nET\n`;
+        const x0 = R[0] + 0.5; const x1 = R[2] - 0.5; const yb = Y(R[3]) + 0.5; const yt = Y(R[1]) - 0.5;
+        const q = Math.min(L.rx, (yt - yb) / 2); const K = 0.5523 * q;
+        const box2 = `${f(x0 + q)} ${f(yb)} m ${f(x1 - q)} ${f(yb)} l ${f(x1 - q + K)} ${f(yb)} ${f(x1)} ${f(yb + q - K)} ${f(x1)} ${f(yb + q)} c ${f(x1)} ${f(yt - q)} l ${f(x1)} ${f(yt - q + K)} ${f(x1 - q + K)} ${f(yt)} ${f(x1 - q)} ${f(yt)} c ${f(x0 + q)} ${f(yt)} l ${f(x0 + q - K)} ${f(yt)} ${f(x0)} ${f(yt - q + K)} ${f(x0)} ${f(yt - q)} c ${f(x0)} ${f(yb + q)} l ${f(x0)} ${f(yb + q - K)} ${f(x0 + q - K)} ${f(yb)} ${f(x0 + q)} ${f(yb)} c h`;
+        box = pad(...R, 1);
+        content = `1 1 1 rg\n0.86 0.86 0.86 RG\n0.6 w\n${box2} B\n0.23 0.23 0.23 rg\nBT\n/F0 ${f(L.fs)} Tf\n${f(L.tx)} ${f(Y(R[1] + L.hg / 2 + L.fs * 0.36))} Td\n${hex} Tj\nET\n`;
         resources = { Font: { F0: font.ref } };
         extra.Contents = PDFHexString.fromText(a.text);
-        extra.DA = PDFHexString.fromText(`${f(r)} ${f(g)} ${f(b)} rg /Helv ${f(L.fs)} Tf`);
+        extra.DA = PDFHexString.fromText(`0.23 0.23 0.23 rg /Helv ${f(L.fs)} Tf`);
         break;
       }
       case 'sig': {
@@ -383,6 +380,10 @@ class Writer {
     }
 
     const { context } = this.pdf;
+    // 0.9.5: l'etichetta è invisibile anche nel PDF: aspetto normale vuoto, aspetto «al passaggio del mouse»
+    // (R) con la pillola, e non si stampa. Nella versione definitiva non compare.
+    const hidden = a.type === 'label';
+    if (hidden && this.flatten) return;
     const form = this.form(p, M, box, content, resources);
     if (this.flatten) {
       this.n += 1;
@@ -391,8 +392,9 @@ class Writer {
       return;
     }
     const dict = context.obj({
-      Type: 'Annot', Subtype: subtype, Rect: this.rectOf(M, box), F: 4, C: [f(r), f(g), f(b)],
-      NM: PDFHexString.fromText(a.id), T: PDFHexString.fromText('Postilla'), AP: { N: form }, ...extra,
+      Type: 'Annot', Subtype: subtype, Rect: this.rectOf(M, box), F: hidden ? 0 : 4, C: [f(r), f(g), f(b)],
+      NM: PDFHexString.fromText(a.id), T: PDFHexString.fromText('Postilla'),
+      AP: hidden ? { N: this.form(p, M, box, '', {}), R: form } : { N: form }, ...extra,
     });
     const clean = { ...a }; delete clean.page;
     dict.set(PDFName.of(KEY), PDFHexString.fromText(JSON.stringify(clean)));

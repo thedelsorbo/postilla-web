@@ -81,9 +81,12 @@ input, textarea { font: inherit; color: inherit; border: 1px solid var(--line); 
 .label-pop { width: 240px; background: #fff; padding: 6px; z-index: 6; }
 .label-input { width: 100%; font-size: 15px; padding: 6px 8px; border: 1px solid #b9b2a2; border-radius: 6px; outline: none; }
 .label-input:focus { border-color: var(--accent); }
-.an-layer .an-label .lb-bg { transition: fill 0.12s, fill-opacity 0.12s, stroke-width 0.12s; }
-.an-layer .an-label.lit { filter: drop-shadow(0 0 3px #f0a500) drop-shadow(0 0 7px #ffd23f); }
-.an-layer .an-label.lit .lb-bg { fill: #ffe45c; fill-opacity: 1; stroke-width: 2.4; }
+/* 0.9.5: note invisibili (etichette). Non si vede nulla; al passaggio di penna o mouse compaiono piano,
+   come un piccolo foglietto con un'ombra leggera. Con lo strumento attivo o con «Mostra le note invisibili»
+   si vedono tenui, per sapere dove sono. */
+.an-layer .an-label { opacity: 0; transition: opacity 0.18s ease; }
+.an-layer .an-label.lit, .an-layer .an-label.picked, html.show-labels .an-layer .an-label { opacity: 1; filter: drop-shadow(0 1px 2px #0000002e); }
+[data-tool="label"] .an-layer .an-label:not(.lit):not(.picked) { opacity: 0.6; }
 .an-layer g.lit:not(.an-label) { filter: drop-shadow(0 0 3px #f0a500) drop-shadow(0 0 6px #f0a500); }
 .note-peek { position: absolute; max-width: 260px; background: #fff4bf; border-radius: 8px; padding: 6px 9px; font-size: 13px; line-height: 1.35; white-space: pre-wrap; box-shadow: 0 3px 12px #0004; pointer-events: none; z-index: 6; }
 

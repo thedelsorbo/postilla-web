@@ -5,7 +5,7 @@ import { quadDisp } from './annots.js';
 import { searchAll } from './text.js';
 import { buildPdf, countPages, deletePages, extractPages, insertBlank, insertPdf, reorderPages, rotatePages } from './pdfio.js';
 
-const LABELS = { ink: 'Disegno', hl: 'Evidenziato', ul: 'Sottolineato', so: 'Barrato', rect: 'Rettangolo', ellipse: 'Ellisse', line: 'Linea', arrow: 'Freccia', text: 'Testo', note: 'Nota', label: 'Etichetta', stamp: 'Timbro', sig: 'Firma visiva', image: 'Immagine', redact: 'Da oscurare' };
+const LABELS = { ink: 'Disegno', hl: 'Evidenziato', ul: 'Sottolineato', so: 'Barrato', rect: 'Rettangolo', ellipse: 'Ellisse', line: 'Linea', arrow: 'Freccia', text: 'Testo', note: 'Nota', label: 'Nota invisibile', stamp: 'Timbro', sig: 'Firma visiva', image: 'Immagine', redact: 'Da oscurare' };
 
 export class Panel {
   constructor(app) {

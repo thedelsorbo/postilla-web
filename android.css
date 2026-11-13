@@ -21,6 +21,9 @@ html.android:not(.web) .pdf-field:disabled { background: transparent; border-col
 #access-gate .gate-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 #access-gate button { min-height: 48px; font-size: 16px; }
 
+/* 0.9.5: sul tablet «Pagina intera» resta nel menu Visualizza (e col doppio tocco): fa posto al tasto «Mostra le etichette». */
+html.android #toolbar [data-id="fitp"] { display: none; }
+
 /* Tablet in verticale: si nascondono i comandi che hanno già un'alternativa a portata di dito
    (zoom con due dita, evidenziatori nella barra destra, sottolinea e barra selezionando il testo). */
 @media (max-width: 1000px) {

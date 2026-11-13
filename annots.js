@@ -45,21 +45,22 @@ export function stampFont(label, w, hgt) {
   return Math.min(hgt * 0.56, ((w - 12) / width) * 100);
 }
 
-// 0.9.4: etichetta (pillola colorata con un punto e il testo). Margini interni proporzionali all'altezza.
-const LBL_L = 0.8; const LBL_R = 0.5;
+// 0.9.5: nota invisibile (etichetta): un piccolo foglietto bianco, bordo appena accennato, testo grigio scuro, nessuna icona.
+const LBL_L = 0.45; const LBL_R = 0.45; const LBL_FS = 0.56;
 export function labelFont(text, w, hgt) {
-  mctx.font = 'bold 100px Arial';
+  mctx.font = '100px Arial';
   const width = mctx.measureText(text).width || 1;
-  return Math.max(4, Math.min(hgt * 0.52, ((w - hgt * (LBL_L + LBL_R)) / width) * 100));
+  return Math.max(4, Math.min(hgt * LBL_FS, ((w - hgt * (LBL_L + LBL_R)) / width) * 100));
 }
 export function labelWidth(text, hgt) {
-  mctx.font = `bold ${hgt * 0.52}px Arial`;
-  return Math.max(hgt * 2.4, mctx.measureText(text).width + hgt * (LBL_L + LBL_R));
+  mctx.font = `${hgt * LBL_FS}px Arial`;
+  return Math.max(hgt * 1.6, mctx.measureText(text).width + hgt * (LBL_L + LBL_R));
 }
 export const labelParts = (r, text) => {
   const w = r[2] - r[0]; const hg = r[3] - r[1];
-  return { w, hg, fs: labelFont(text, w, hg), dot: [r[0] + hg * 0.45, r[1] + hg / 2, hg * 0.14], tx: r[0] + hg * LBL_L };
+  return { w, hg, fs: labelFont(text, w, hg), rx: hg * 0.22, tx: r[0] + hg * LBL_L };
 };
+export const LABEL_INK = '#3b3b3b';
 
 export function arrowHead(x0, y0, x1, y1, size) {
   const len = Math.max(8, size * 4.5);
@@ -143,7 +144,7 @@ export function annSvg(a, p) {
     }
     case 'label': {
       const r = dispRect(p, a); const L = labelParts(r, a.text);
-      return `<g ${id} class="an-label" style="--lc:${c}"><rect x="${r[0] + 0.7}" y="${r[1] + 0.7}" width="${L.w - 1.4}" height="${L.hg - 1.4}" rx="${(L.hg - 1.4) / 2}" fill="#fff"/><rect class="lb-bg" x="${r[0] + 0.7}" y="${r[1] + 0.7}" width="${L.w - 1.4}" height="${L.hg - 1.4}" rx="${(L.hg - 1.4) / 2}" fill="${c}" fill-opacity="0.16" stroke="${c}" stroke-width="1.4"/><circle cx="${L.dot[0]}" cy="${L.dot[1]}" r="${L.dot[2]}" fill="${c}"/><text x="${L.tx}" y="${r[1] + L.hg / 2 + L.fs * 0.36}" font-family="Arial" font-weight="700" font-size="${L.fs}" fill="${c}" xml:space="preserve">${esc(a.text)}</text></g>`;
+      return `<g ${id} class="an-label"><rect class="lb-bg" x="${r[0] + 0.5}" y="${r[1] + 0.5}" width="${L.w - 1}" height="${L.hg - 1}" rx="${L.rx}" fill="#ffffff" fill-opacity="0.97" stroke="#000000" stroke-opacity="0.14" stroke-width="0.6"/><text x="${L.tx}" y="${r[1] + L.hg / 2 + L.fs * 0.36}" font-family="Arial" font-size="${L.fs}" fill="${LABEL_INK}" xml:space="preserve">${esc(a.text)}</text></g>`;
     }
     case 'sig': {
       const r = dispRect(p, a);

@@ -21,6 +21,23 @@ export function toast(msg, kind = '') {
   setTimeout(() => t.remove(), kind === 'error' ? 7000 : 3500);
 }
 
+// Appunti del sistema: su Windows e sul tablet passano dal programma (la pagina da sola non ha il permesso),
+// nel browser dalle funzioni del browser. Restituiscono false / null se gli appunti non si possono usare.
+export async function clipWrite(text) {
+  const s = String(text ?? '');
+  try { if (window.host?.clipWrite && await window.host.clipWrite(s)) return true; } catch { /* si prova sotto */ }
+  try { await navigator.clipboard.writeText(s); return true; } catch { /* si prova sotto */ }
+  try {
+    const ta = h('textarea', { style: 'position:fixed;left:-9999px;top:0' }); ta.value = s;
+    document.body.append(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch { return false; }
+}
+
+export async function clipRead() {
+  try { if (window.host?.clipRead) { const t = await window.host.clipRead(); if (typeof t === 'string') return t; } } catch { /* si prova sotto */ }
+  try { return await navigator.clipboard.readText(); } catch { return null; }
+}
+
 function modal(build) {
   return new Promise((resolve) => {
     const back = h('div', { class: 'modal-back' });
@@ -85,6 +102,9 @@ const P = {
   trash: '<path d="M4 6.500h16M9 6.500V4h6v2.500M6.500 6.500 7.500 20.500h9l1-14M10 10.500v6M14 10.500v6"/>',
   edit: '<path d="m4 20 1-4 11-11 3 3-11 11z"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M16 8V4H4v12h4"/>',
+  eye: '<path d="M2.500 12s3.500-6.500 9.500-6.500S21.500 12 21.500 12s-3.500 6.500-9.500 6.500S2.500 12 2.500 12z"/><circle cx="12" cy="12" r="3"/>',
+  paste: '<path d="M9 4h6v3H9z"/><path d="M9 5.500H6v15h12v-15h-3"/><path d="M12 10v7M9 14l3 3 3-3"/>',
+  duplicate: '<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M16 8V4H4v12h4M14 11v6M11 14h6"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   finger: '<path d="M9 13V5a1.700 1.700 0 0 1 3.400 0v6l4.800 1.200c1.300.3 2 1.300 1.800 2.600l-.8 5.200H10L5.500 15c-1-1.300.8-3 2.200-2z"/>',

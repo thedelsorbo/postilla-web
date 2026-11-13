@@ -1,4 +1,4 @@
-# Postilla 0.9.4, versione web. Se il sito non usa Apache, questo file viene ignorato.
+# Postilla 0.9.5, versione web. Se il sito non usa Apache, questo file viene ignorato.
 AddType text/javascript .mjs
 AddType application/wasm .wasm
 AddType application/manifest+json .webmanifest

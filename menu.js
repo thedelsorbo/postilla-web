@@ -14,7 +14,7 @@ const pro = (name) => import(`./pro/${name}`);
 
 const SHORTCUTS = [
   ['Ctrl + O', 'Apri PDF (anche più di uno)'], ['Ctrl + Maiusc + O', 'Apri a voce: di\' il nome del file'], ['Ctrl + S', 'Salva'], ['Ctrl + Maiusc + S', 'Salva con nome'], ['Ctrl + P', 'Stampa'],
-  ['Ctrl + W', 'Chiudi il documento'], ['Ctrl + Tab', 'Documento successivo'], ['Ctrl + Z / Ctrl + Y', 'Annulla / Ripeti'],
+  ['Ctrl + W', 'Chiudi il documento'], ['Ctrl + Tab', 'Documento successivo'], ['Ctrl + Z / Ctrl + Y', 'Annulla / Ripeti'], ['Ctrl + C / Ctrl + V', 'Copia / Incolla (testo selezionato o annotazione)'],
   ['Ctrl + F', 'Cerca nel documento'], ['Ctrl + K', 'Assistente AI (o Theresa, se è visibile)'], ['Ctrl + Spazio (tenuti premuti)', 'Parla con Theresa'], ['Ctrl + Maiusc + Spazio', 'Accendi o spegni l\'ascolto di «Theresa»'],
   ['Ctrl + + / Ctrl + −', 'Ingrandisci / Riduci'], ['Ctrl + 0', 'Adatta alla larghezza'], ['Pag↑ / Pag↓', 'Pagina precedente / successiva'],
   ['Home', 'Prima pagina'], ['Canc', 'Elimina l\'annotazione selezionata'], ['Esc', 'Ferma la lettura, esce dalla selezione o dal tutto schermo'],
@@ -124,7 +124,10 @@ export class MainMenu {
         { label: 'Sostituisci il testo selezionato…', need: 'sel', run: () => { const s = t.textSel; t.clearTextSel(); startEdit(a, v, s.p, s.words, 'replace'); } },
         { label: 'Modifica il paragrafo (va a capo da solo, come in Word)…', need: 'sel', id: 'para', run: () => { const s = t.textSel; t.clearTextSel(); import('./pro/paragraph.js').then((m) => m.editParagraph(a, v, s.p, s.words)); } },
         { label: 'Aggiungi testo dopo la selezione…', need: 'sel', run: () => { const s = t.textSel; t.clearTextSel(); startEdit(a, v, s.p, s.words, 'add'); } },
-        { label: 'Copia il testo selezionato', need: 'sel', run: () => { navigator.clipboard?.writeText(t.textSel.text); toast('Testo copiato'); } },
+        { label: 'Copia il testo selezionato', need: 'sel', run: () => t.copy() },
+        { label: 'Copia', key: 'Ctrl+C', need: 'doc', id: 'copy', disabled: !t.textSel && !t.selected, run: () => t.copy() },
+        { label: 'Incolla', key: 'Ctrl+V', need: 'doc', id: 'paste', run: () => t.paste(v) },
+        { label: 'Duplica l\'annotazione selezionata', need: 'doc', id: 'duplicate', disabled: !t.selected, run: async () => { if (await t.copy()) await t.paste(v); } },
         { label: 'Elimina l\'annotazione selezionata', key: 'Canc', need: 'doc', run: () => t.deleteSelected() },
         '-',
         { label: 'Cerca nel documento…', key: 'Ctrl+F', need: 'doc', run: () => { a.prefs.panel = true; a.panel.show(true); a.panel.setMode('search'); } },
@@ -164,7 +167,7 @@ export class MainMenu {
         tool('hand', 'Sposta la pagina'), tool('select', 'Seleziona testo e annotazioni'), tool('pen', 'Penna'),
         tool('hl', 'Evidenzia'), tool('ul', 'Sottolinea'), tool('so', 'Barra'),
         tool('rect', 'Rettangolo'), tool('ellipse', 'Ellisse'), tool('line', 'Linea'), tool('arrow', 'Freccia'),
-        tool('text', 'Casella di testo'), tool('note', 'Nota'), tool('label', 'Etichetta'),
+        tool('text', 'Casella di testo'), tool('note', 'Nota'), tool('label', 'Nota invisibile'),
         { label: 'Timbro…', need: 'doc', run: () => { t.set('stamp'); a.openStampMenu(); } },
         { label: 'Firma visiva…', need: 'doc', run: () => { t.set('sig'); a.openSignMenu(); } },
         tool('eraser', 'Gomma'), tool('laser', 'Puntatore virtuale'),
@@ -172,6 +175,7 @@ export class MainMenu {
         { label: 'Scala delle misure…', run: () => pro('measure.js').then((m) => m.measureSettings(a)) },
         '-',
         { label: 'Scrivi anche col dito', check: !!a.prefs.fingerDraw, run: () => a.fingerBtn.click() },
+        { label: 'Mostra le note invisibili', id: 'show-labels', check: !!a.prefs.showLabels, run: () => a.toggleLabels() },
         { label: 'Barra delle penne a destra', check: a.prefs.rail !== false, run: () => { a.prefs.rail = a.prefs.rail === false; a.savePrefs(); a.rail.hidden = !a.prefs.rail; } },
       ]],
       ['Visualizza', [

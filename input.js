@@ -32,6 +32,7 @@ export function attachInput(view, app) {
 
   const down = (e) => {
     if (e.target.closest?.('.pdf-field')) return; // campo del modulo: lo gestisce il browser (tastiera, spunta, elenco)
+    if (e.target.closest?.('.frame-bar')) return; // pulsanti sopra l'annotazione selezionata: non devono toglierne la selezione
     if (e.pointerType === 'touch') {
       stopInertia();
       if (penDown || performance.now() - lastPen < 500) return; // palmo appoggiato mentre si scrive
