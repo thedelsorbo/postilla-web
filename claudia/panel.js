@@ -3,7 +3,7 @@
 // ambiguo, apre il PDF alla pagina giusta, evidenzia il passaggio senza modificare il file, restituisce
 // citazione, contesto e riferimenti, e legge solo la citazione. Con il bot «Claudia» di Grok Bot comunica
 // solo tramite la cartella condivisa (grok-link.js), se il collegamento è acceso.
-import { baseName, h, icon, iconBtn, modal, toast, uid } from '../core.js';
+import { baseName, clipWrite, h, icon, iconBtn, modal, toast, uid } from '../core.js';
 import { quadDisp } from '../annots.js';
 import { parseCommand } from './parse.js';
 import { HeadlessDoc, card, describe, rank, refreshCatalog } from './catalog.js';
@@ -483,7 +483,7 @@ export class ClaudiaPanel {
       h('div', { class: 'claudia-actions' },
         h('button', { onclick: () => this.speaker.speak(r.quote, lang), html: `${icon('speaker')} Leggi la citazione` }),
         h('button', { onclick: () => this.saveHighlight(), html: `${icon('mark')} Salva evidenziazione` }),
-        h('button', { onclick: () => { navigator.clipboard?.writeText(r.quote); toast('Citazione copiata.'); }, html: `${icon('copy')} Copia` })));
+        h('button', { onclick: async () => { toast((await clipWrite(r.quote)) ? 'Citazione copiata.' : 'Non riesco a usare gli appunti.'); }, html: `${icon('copy')} Copia` })));
     card$.dataset.quote = r.quote;
     card$.dataset.say = `Trovato${r.article?.title ? ` ${String(r.article.title).split(/[.:—-]/)[0].trim()}` : ''}, pagina ${n.index} di ${card(option.entry).title}. Di' leggi se vuoi che te lo legga.`;
     if (cmd.explain || cmd.translate) this.unavailable(cmd);
